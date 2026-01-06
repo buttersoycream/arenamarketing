@@ -3,14 +3,19 @@ import google.generativeai as genai
 import datetime
 
 # ==========================================
-# 1. 설정 및 API 키
+# 1. API 키 설정 (Streamlit Cloud 배포용)
 # ==========================================
-# 대표님의 API 키
-API_KEY = st.secrets["GOOGLE_API_KEY"]
-genai.configure(api_key=API_KEY)
+# 배포할 때는 아래처럼 st.secrets를 써야 안전합니다.
+# 로컬에서 테스트할 때는 secrets.toml 파일을 만들거나, 
+# 임시로 API_KEY = "내_키_직접_입력" 해도 됩니다.
+try:
+    API_KEY = st.secrets["GOOGLE_API_KEY"]
+except:
+    # 로컬 테스트용 (여기에 키를 넣고 테스트하다가 배포 전엔 지우거나 주석처리 하세요)
+    API_KEY = "AIzaSyC4HnIp1H3_WwepLyB907s6XuAh3dSK0ME" 
 
-# 👉 여기서 모델명을 3.0으로 확정했습니다.
-MODEL_NAME = 'gemini-3-pro-preview'
+genai.configure(api_key=API_KEY)
+MODEL_NAME = 'gemini-3-pro-preview' # 3.0 모델 사용
 
 # ==========================================
 # 2. 마케팅 제안 생성 함수
@@ -26,100 +31,97 @@ def get_marketing_suggestion():
     
     prompt = f"""
     당신은 아레나 수영복 매장의 유능한 마케팅 팀장입니다.
-    오늘 날짜({date_str}, {weekday_kr}요일)와 현재 시즌을 고려해서,
-    사장님에게 실행 가능한 마케팅 아이디어 3가지를 정중하고 열정적으로 제안해주세요.
-    매장은 구로역 NC백화점에 있으며, 최근 주변 수영장 리모델링 오픈 이슈가 있습니다.
+    오늘 날짜({date_str}, {weekday_kr}요일)와 현재 시즌을 고려해서 마케팅 아이디어 3가지를 제안해주세요.
+    
+    [매장 상황]
+    - 위치: 구로역 NC백화점 아레나
+    - 이슈: 주변 실내 수영장 리모델링 오픈
+
+    [⚠️ 중요: 가격 정책]
+    - 매니저 재량으로 할인을 해줄 수 없습니다. 할인 제안은 하지 마세요.
+    - 대신 '신상 입고', '사이즈 상담', '사은품 증정(수모 등)' 같은 서비스적인 측면을 강조하는 전략을 짜주세요.
     """
     
     return model.generate_content(prompt).text
 
 # ==========================================
-# 3. 화면 디자인 (Streamlit)
+# 3. 홍보글 작성 모델 설정 (여기가 핵심!)
 # ==========================================
-st.set_page_config(page_title="아레나 AI 마케터 (Gemini 3.0)", page_icon="🏊‍♀️", layout="wide")
+system_instruction = """
+당신은 아레나 NC구로점의 온라인 마케팅 전문가입니다.
+사용자가 입력한 상품 특징과 상황을 바탕으로 SNS 홍보글을 작성합니다.
 
-# 사이드바: 내 API 키로 사용 가능한 모델 확인하기 (디버깅용)
-with st.sidebar:
-    st.header("🔧 모델 연결 상태 확인")
-    if st.button("내 사용 가능 모델 조회"):
-        try:
-            st.write("🔎 조회 중...")
-            models = genai.list_models()
-            found = False
-            for m in models:
-                if 'generateContent' in m.supported_generation_methods:
-                    st.code(m.name) # 사용 가능한 모델 이름 출력
-                    if MODEL_NAME in m.name:
-                        found = True
-            
-            st.divider()
-            if found:
-                st.success(f"✅ {MODEL_NAME} 연결 성공!")
-            else:
-                st.error(f"⚠️ {MODEL_NAME}를 찾을 수 없습니다. 위 목록에 있는 이름을 복사해서 코드의 MODEL_NAME을 수정해주세요.")
-        except Exception as e:
-            st.error(f"연결 실패: {e}")
+[⚠️ 절대 금지 사항 (Strict Rules)]
+1. **임의 할인 언급 금지:** 당신은 중간 관리자이므로 마음대로 가격을 깎아줄 권한이 없습니다.
+2. **세트 할인 금지:** "세트로 사시면 싸게 드려요", "2개 사면 10% 할인" 같은 멘트는 절대 쓰지 마세요.
+3. **오직 팩트만:** 사용자가 입력창에 "이 제품 20% 세일 중"이라고 명시했을 때만 할인을 언급하세요. 그 외에는 정가 판매가 원칙입니다.
+4. 할인 대신 강조할 것: "전문적인 핏팅 서비스", "사은품 챙겨드림", "친절한 상담" 등 서비스나 품질을 강조하세요.
 
-# 메인 화면
-st.title(f"🏊‍♀️ 아레나 AI 마케터 (v3.0)")
-st.caption(f"현재 연결된 모델: {MODEL_NAME}")
+[말투 가이드]
+- 인스타그램: 트렌디하고 짧게, 이모티콘 필수
+- 블로그: 정보성 있게 꼼꼼하게
+- 당근마켓: 정겹고 예의 바르게
+"""
+
+# ==========================================
+# 4. 화면 디자인
+# ==========================================
+st.set_page_config(page_title="아레나 AI 마케터 (v3.1)", page_icon="🏊‍♀️", layout="wide")
+
+st.title(f"🏊‍♀️ 아레나 AI 마케터")
+st.caption("할인 정책이 반영된 안전한 마케팅 비서입니다.")
 
 st.divider()
 
-# --- [섹션 1: 오늘의 추천 전략] ---
-st.subheader("📢 오늘의 마케팅 전략 추천")
-
+# --- [섹션 1: 오늘의 전략] ---
 if 'suggestion' not in st.session_state:
     st.session_state['suggestion'] = None
 
 if st.button("💡 오늘의 마케팅 아이디어 받기"):
-    with st.spinner(f"{MODEL_NAME}이(가) 트렌드를 분석 중입니다..."):
+    with st.spinner("트렌드 분석 중..."):
         try:
             st.session_state['suggestion'] = get_marketing_suggestion()
         except Exception as e:
             st.error(f"에러 발생: {e}")
-            st.warning("왼쪽 사이드바의 '내 사용 가능 모델 조회'를 눌러서 모델명이 정확한지 확인해보세요.")
 
 if st.session_state['suggestion']:
     st.info(st.session_state['suggestion'])
 
 st.divider()
 
-# --- [섹션 2: 홍보글 자동 작성] ---
+# --- [섹션 2: 홍보글 작성] ---
 st.subheader("✍️ 홍보글 작성하기")
 
 col1, col2 = st.columns(2)
 with col1:
     target = st.selectbox("타겟 고객", ["수영 초보/강습생", "수영 고수/매니아", "호캉스/여행객", "선물용 구매"])
 with col2:
-    platform = st.selectbox("업로드 플랫폼", ["인스타그램 (감성+짧게)", "네이버 블로그 (정보+길게)", "당근마켓 (친근하게)"])
+    platform = st.selectbox("업로드 플랫폼", ["인스타그램", "네이버 블로그", "당근마켓"])
 
 product_info = st.text_area(
-    "상품 특징",
+    "상품 특징 및 정보",
     height=100,
-    placeholder="예: 비 오는 날엔 역시 쨍한 네온 컬러! 탄탄이 소재라 튼튼함."
+    placeholder="예: 신상 탄탄이, 화려한 패턴. (할인 중이라면 '20% 할인 중'이라고 꼭 적어주세요!)"
 )
 
 if st.button("✨ 홍보글 생성하기", type="primary"):
     if not product_info:
-        st.warning("상품 특징을 입력해주세요!")
+        st.warning("내용을 입력해주세요!")
     else:
-        with st.spinner("글 쓰는 중..."):
+        with st.spinner("가격 정책 준수하며 글 쓰는 중..."):
             try:
-                # 글쓰기 모델 설정
-                writer_model = genai.GenerativeModel(MODEL_NAME)
+                # 시스템 지시사항이 포함된 모델 로드
+                writer_model = genai.GenerativeModel(MODEL_NAME, system_instruction=system_instruction)
                 
                 prompt = f"""
-                역할: 아레나 NC구로점 온라인 마케터
                 상품 및 상황: {product_info}
                 타겟: {target}
                 플랫폼: {platform}
                 
-                위 조건에 맞춰 매력적인 홍보글을 작성해주세요.
+                위 내용을 바탕으로 홍보글을 작성해주세요. (금지된 할인 멘트 절대 사용 불가)
                 """
                 response = writer_model.generate_content(prompt)
                 st.success("작성 완료!")
                 st.markdown(response.text)
             except Exception as e:
-
                 st.error(f"오류가 발생했습니다: {e}")
