@@ -6,7 +6,7 @@ import datetime
 # 1. 설정 및 API 키
 # ==========================================
 # 대표님의 API 키
-API_KEY = "AIzaSyC4HnIp1H3_WwepLyB907s6XuAh3dSK0ME" 
+API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=API_KEY)
 
 # 👉 여기서 모델명을 3.0으로 확정했습니다.
@@ -121,4 +121,5 @@ if st.button("✨ 홍보글 생성하기", type="primary"):
                 st.success("작성 완료!")
                 st.markdown(response.text)
             except Exception as e:
+
                 st.error(f"오류가 발생했습니다: {e}")
